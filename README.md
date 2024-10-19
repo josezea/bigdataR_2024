@@ -1,3 +1,6 @@
+
+![image](https://github.com/user-attachments/assets/26d27ab1-5508-43c5-a095-7c182174d11d)
+
 # Proyecto de Big Data con R 🚀
 
 ¡Bienvenido a este emocionante proyecto de Big Data utilizando R! 🎉 Aquí exploraremos cómo R se puede integrar con herramientas poderosas como Google BigQuery y varios paquetes diseñados para manejar grandes volúmenes de datos.
