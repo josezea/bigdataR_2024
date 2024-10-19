@@ -1,0 +1,81 @@
+---
+title: "Big Data con Bigquery"
+output: html_document
+date: "2024-10-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(DBI)
+library(bigrquery)
+library(dbplyr)
+library(lubridate)
+library(tictoc) # Limpieza de nombres
+```
+
+```{r, warning=FALSE, message=FALSE}
+key_path <- Sys.getenv("BIGQUERY_KEY_PATH")
+bq_auth(path = key_path)
+str_project <- "analitica-avanzada-268116"
+con <- DBI::dbConnect(bigquery(), project = str_project, dataset = "SANDBOX")
+```
+
+
+Leemos de forma "lazy" las tablas del censo de población:
+
+```{r, warning=FALSE, message=FALSE}
+string_personas <- "SELECT * FROM `analitica-avanzada-268116.test_data.censo_personas`"
+df_personas_lz <- tbl(con, sql(string_personas))
+                      
+string_viviendas <- "SELECT * FROM `analitica-avanzada-268116.test_data.censo_viviendas`"
+df_viviendas_lz <- tbl(con, sql(string_viviendas))
+```
+
+
+El total de la tabla de personas es:
+
+```{r}
+df_personas_lz %>% count()
+```
+
+
+El total viviendas
+
+```{r}
+df_viviendas_lz %>% count()
+```
+
+
+El total de personas ubicados en la zona urbana mayores de 15 años agrupadas por municipio,
+grupos de edad, sexo y estrato es:
+
+```{r}
+tic()
+df_per_lz <- df_personas_lz %>% select(COD_ENCUESTAS, UA_CLASE, P_SEXO, P_EDADR) %>% 
+  filter(P_EDADR >= 4 & UA_CLASE == 1) %>% 
+  mutate(G_EDAD = ifelse(P_EDADR %in% c(4, 5), "Jovenes",
+                    ifelse(P_EDADR %in% c(6, 9), "Adultos jovenes",
+                      ifelse(P_EDADR %in% c(10, 13), "Adultos", "Adultos mayores")))) %>% 
+  select(-P_EDADR, -UA_CLASE)
+                                         
+df_viv_lz <- df_viviendas_lz %>% select(COD_ENCUESTAS, U_DPTO, U_MPIO,
+                                     UA_CLASE, VA1_ESTRATO)  %>% 
+          filter(UA_CLASE == 1 & VA1_ESTRATO != 9) %>% 
+          mutate(ESTRATO = ifelse(VA1_ESTRATO %in% c(0, 1), 1, VA1_ESTRATO)) %>% 
+          select(-VA1_ESTRATO)
+                                  
+consulta <-  df_per_lz %>% left_join(df_viv_lz, by = "COD_ENCUESTAS")  %>% 
+             group_by(U_DPTO, U_MPIO, G_EDAD, P_SEXO, ESTRATO) %>% 
+             summarise(N = n()) %>% collect()
+toc()
+```
+
+
+```{r}
+consulta <- consulta %>% arrange(U_DPTO, U_MPIO, G_EDAD, P_SEXO, ESTRATO)
+consulta %>% filter(U_DPTO == 11)
+```
