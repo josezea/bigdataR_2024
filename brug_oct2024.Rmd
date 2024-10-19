@@ -1,0 +1,123 @@
+---
+title: "Big Data: Caso de uso censo 2018"
+author: "José Fernando Zea"
+date: "2024-10-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Cargamos los paquetes necesarios para procesar los volumenes de datos disponibles:
+
+```{r, warning=FALSE, message=FALSE}
+library(arrow) # Librería en C++ trabaja paralelo para procesar datos
+library(duckdb) # Paquete para manejar base de datos duckdb
+library(dbplyr) # Consultas en dplyr para un motor de bases de datos
+library(dplyr) # Procesar datos (small data)
+# Hacer conexiones a bases de datos (Duckdb, Oracle, Mysql, MariaDB, Posgresql, Slqserver
+# DataWarehouse: AWS Redshift, Google Bigquery, Snowflake)
+library(DBI) 
+library(tictoc) # Tomar tiempos
+```
+
+
+
+# Lectura de datos
+
+Leemos de manera "lazy" la tabla de viviendas, hogares y personas del censo 2018:
+
+```{r}
+df_viviendas_lz <- open_dataset("parquet/viviendas")
+df_hogares_lz <- open_dataset("parquet/hogares")
+df_personas_lz <- open_dataset("parquet/personas")
+```
+
+Vamos a generar un marco de muestreo para investigaciones de mercado para personas mayores de 15 años en las áreas urbanas. Para lograr lo anterior vamos a calcular el número total de personas por sexo, municipio, grupos de edad, estrato socioeconómico, Los grupos de edad a utilizar son: 
+- 0-15 años: Niños.
+- 15-24 años: Jóvenes.
+- 25-44 años: Adultos jóvenes.
+- 45-64 años: Adultos.
+- 65 años y más: Personas mayores .
+
+
+# Ejecución con arrow
+
+```{r}
+tic()
+df_per_lz <- df_personas_lz %>% select(COD_ENCUESTAS, UA_CLASE, P_SEXO, P_EDADR) %>% 
+  filter(P_EDADR >= 4 & UA_CLASE == 1) %>% 
+  mutate(G_EDAD = ifelse(P_EDADR %in% c(4, 5), "Jovenes",
+                    ifelse(P_EDADR %in% c(6, 9), "Adultos jovenes",
+                      ifelse(P_EDADR %in% c(10, 13), "Adultos", "Adultos mayores")))) %>% 
+  select(-P_EDADR, -UA_CLASE)
+                                         
+df_viv_lz <- df_viviendas_lz %>% select(COD_ENCUESTAS, U_DPTO, U_MPIO,
+                                     UA_CLASE, VA1_ESTRATO)  %>% 
+          filter(UA_CLASE == 1 & VA1_ESTRATO != 9) %>% 
+          mutate(ESTRATO = ifelse(VA1_ESTRATO %in% c(0, 1), 1, VA1_ESTRATO)) %>% 
+          select(-VA1_ESTRATO)
+                                  
+consulta <-  df_per_lz %>% left_join(df_viv_lz, by = "COD_ENCUESTAS")  %>% 
+             group_by(U_DPTO, U_MPIO, G_EDAD, P_SEXO, ESTRATO) %>% 
+             summarise(N = n()) %>% collect()
+toc()
+```
+
+Disponemos ya de un marco para nuestros análisis:
+
+```{r}
+consulta <- consulta %>% arrange(U_DPTO, U_MPIO, G_EDAD, P_SEXO, ESTRATO) 
+```
+
+
+```{r}
+dim(consulta)
+```
+
+# Ejecución en Duckdb
+
+
+```{r}
+con <- DBI::dbConnect(drv = duckdb::duckdb(), 
+                      dbdir = "bd_censo")
+```
+
+
+```{r}
+df_personas_duck <- to_duckdb(df_personas_lz, con, "personasColombia_duck")
+df_vivienda_duck <- to_duckdb(df_viviendas_lz, con, "viviendasColombia_duck")
+```
+
+
+```{r}
+tic()
+df_perDuck_lz <- df_personas_duck %>% select(COD_ENCUESTAS, UA_CLASE, P_SEXO, P_EDADR) %>% 
+  filter(P_EDADR >= 4 & UA_CLASE == 1) %>% 
+  mutate(G_EDAD = ifelse(P_EDADR %in% c(4, 5), "Jovenes",
+                    ifelse(P_EDADR %in% c(6, 9), "Adultos jovenes",
+                      ifelse(P_EDADR %in% c(10, 13), "Adultos", "Adultos mayores")))) %>% 
+  select(-P_EDADR, -UA_CLASE)
+                                         
+df_vivDuck_lz <- df_vivienda_duck %>% select(COD_ENCUESTAS, U_DPTO, U_MPIO,
+                                     UA_CLASE, VA1_ESTRATO)  %>% 
+          filter(UA_CLASE == 1 & VA1_ESTRATO != 9) %>% 
+          mutate(ESTRATO = ifelse(VA1_ESTRATO %in% c(0, 1), 1, VA1_ESTRATO)) %>% 
+          select(-VA1_ESTRATO)
+                                  
+consulta2 <-  df_perDuck_lz %>% left_join(df_vivDuck_lz, by = "COD_ENCUESTAS")  %>% 
+             group_by(U_DPTO, U_MPIO, G_EDAD, P_SEXO, ESTRATO) %>% 
+             summarise(N = n()) %>% collect()
+toc()
+
+```
+
+
+Otra vez disponemos de un marco para nuestros análisis:
+
+```{r}
+consulta2 %>% nrow()
+```
+
+s
