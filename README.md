@@ -1,5 +1,7 @@
 
-![image](https://github.com/user-attachments/assets/26d27ab1-5508-43c5-a095-7c182174d11d)
+<div align="center">
+    <img src="https://github.com/user-attachments/assets/26d27ab1-5508-43c5-a095-7c182174d11d" width="25%" />
+</div>
 
 # Proyecto de Big Data con R 🚀
 
