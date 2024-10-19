@@ -16,7 +16,7 @@ R no solo es un lenguaje estadístico, sino que también cuenta con un ecosistem
 - **Paquete `duckdb`**: DuckDB es un motor de base de datos en memoria que permite realizar consultas SQL sobre grandes conjuntos de datos de manera eficiente. 🦆
 
 ## Datos 📊
-Pueden encontrar los datos en: https://www.dropbox.com/scl/fo/8v04ytxh4g0pj32ir4c3l/AA3N_RMBtV916MXXoe_4stA/hogares?dl=0&rlkey=l5upmb0deodayh8lzzzrzfihm&subfolder_nav_tracking=1
+Pueden encontrar los datos en: [https://www.dropbox.com/scl/fo/8v04ytxh4g0pj32ir4c3l/AA3N_RMBtV916MXXoe_4stA/hogares?dl=0&rlkey=l5upmb0deodayh8lzzzrzfihm&subfolder_nav_tracking=1](https://www.dropbox.com/scl/fo/8v04ytxh4g0pj32ir4c3l/AFJvfv9KnhwfN5TJC2ztwZc?rlkey=l5upmb0deodayh8lzzzrzfihm&st=yq6tykok&dl=0)
 
 ## Configuración del Entorno 🛠️
 
